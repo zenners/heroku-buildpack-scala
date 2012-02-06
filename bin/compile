@@ -10,6 +10,8 @@ BIN_DIR=$(cd $(dirname $0); pwd) # absolute path
 BUILD_DIR=$(cd $1; pwd)
 CACHE_DIR=$2
 
+export PATH=/usr/java/openjdk7-u2-b21/bin:$PATH
+
 # home directory from perspective of SBT; we rename
 # it because otherwise the project root and $HOME
 # are the same, and by default .sbt has a (different)

@@ -4,7 +4,7 @@
 cat <<EOF
 ---
 config_vars:
-  PATH: .sbt_home/bin:/usr/local/bin:/usr/bin:/bin
+  PATH: .sbt_home/bin:/usr/java/openjdk7-u2-b21/bin:/usr/local/bin:/usr/bin:/bin
   JAVA_OPTS: -Xmx384m -Xss512k -XX:+UseCompressedOops
   SBT_OPTS: -Xmx384m -Xss512k -XX:+UseCompressedOops
   REPO: /app/.sbt_home/.ivy2/cache
