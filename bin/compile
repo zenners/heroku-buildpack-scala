@@ -111,7 +111,6 @@ cp "$BIN_DIR/../opt/sbt-$SBT_VERSION" "$SBT_BINDIR"/sbt
 curl --silent --max-time 10 --location $SBT_PROPS_URL --output "$SBT_BINDIR"/sbt.boot.properties
 #echo " done"
 
-
 #echo -n "-----> Intsalling plugins..."
 HEROKU_PLUGIN="Heroku-0.11.0.scala"
 mkdir -p "$SBT_USER_HOME/.sbt/plugins" && curl --silent --max-time 10 --location "http://s3.amazonaws.com/heroku-jvm-langpack-scala/$HEROKU_PLUGIN" --output "$SBT_USER_HOME/.sbt/plugins/$HEROKU_PLUGIN"
@@ -120,9 +119,12 @@ HEROKU_PLUGINS_CONFIG="heroku-plugins-0.11.0.sbt"
 mkdir -p "$SBT_USER_HOME/.sbt/plugins" && curl --silent --max-time 10 --location "http://s3.amazonaws.com/heroku-jvm-langpack-scala/$HEROKU_PLUGINS_CONFIG"  --output "$SBT_USER_HOME/.sbt/plugins/$HEROKU_PLUGINS_CONFIG"
 #echo " done"
 
+SBT_BOOTDIR="$SBT_USER_HOME_ABSOLUTE"/boot
+mkdir -p $SBT_BOOTDIR
+
 # build app
 echo "-----> Running: sbt $SBT_TASKS"
-test -e "$SBT_BINDIR"/sbt.boot.properties && PROPS_OPTION="-Dsbt.boot.properties=$SBT_BINDIR/sbt.boot.properties"
+test -e "$SBT_BINDIR"/sbt.boot.properties && PROPS_OPTION="-Dsbt.boot.properties=$SBT_BINDIR/sbt.boot.properties -Dsbt.boot.directory=$SBT_BOOTDIR"
 HOME="$SBT_USER_HOME_ABSOLUTE" java -Xmx512M -Dfile.encoding=UTF8 -Duser.home="$SBT_USER_HOME_ABSOLUTE" -Dsbt.log.noformat=true -Divy.default.ivy.user.dir="$SBT_USER_HOME_ABSOLUTE/.ivy2" $PROPS_OPTION -jar "$SBT_BINDIR"/$SBT_JAR $SBT_TASKS 2>&1 | sed -u 's/^/       /'
 if [ "${PIPESTATUS[*]}" != "0 0" ]; then
   echo " !     Failed to build app with sbt"
