@@ -5,6 +5,7 @@
 set -e
 
 BIN_DIR=$(cd $(dirname $0); pwd) # absolute path
+. $BIN_DIR/common
 
 # parse args
 BUILD_DIR=$(cd $1; pwd)
@@ -38,29 +39,17 @@ if ! test -e project/build.properties; then
         exit 1
 fi
 
-    
-if grep -q -v 'sbt.version *= *0\.11\.[0-9]' project/build.properties; then
+if ! has_supported_sbt_version ${BUILD_DIR}; then
 	echo " !      Error, you have defined an unsupported sbt.version in project/build.properties"
 	echo " !      You must use a release verison of sbt, sbt.version=0.11.0 or greater"
 	exit 1
 fi
-
-if grep -q 'sbt.version *= *0\.11\.[0-9]-RC' project/build.properties; then
-	echo " !      Error, you have defined an unsupported sbt.version in project/build.properties"
-	echo " !      You must use a release verison of sbt, sbt.version=0.11.0 or greater"
-	exit 1
-fi
-
-
-
-SBT_VERSION="0.11.0"
-SBT_JAR="sbt-launch-$SBT_VERSION.jar"
+ 
+SBT_VERSION="$(get_supported_sbt_version ${BUILD_DIR})"
+SBT_JAR="sbt-launch-0.11.3-2.jar"
 SBT_PROPS="sbt-$SBT_VERSION.boot.properties"
 SBT_URL="http://s3.amazonaws.com/heroku-jvm-langpack-scala/$SBT_JAR"
 SBT_PROPS_URL="http://s3.amazonaws.com/heroku-jvm-langpack-scala/$SBT_PROPS"
-#0.10.1 SBT_SHA1="b41d79cb2d919a0e8732fb8ef4e71347cceea90a" 
-#0.11.0-RC1 SBT_SHA1="85abf74a24593c2b2ea5b033ef01c47b11c04740"
-SBT_SHA1="5b15ba0fc63e355d47293def4bc2e58da6f03787"
 ## in 0.10 start-script will depend on package, if packaging
 ## is required - it may not be, we can run .class files or a package-war
 ## instead.
@@ -78,7 +67,7 @@ if [ ! -f "$SBT_BINDIR"/"$SBT_JAR" ]; then
   ## clean up any old versions
   /bin/rm -f sbt sbt-launch-*.jar || true
 
-  echo "-----> Building app with sbt v0.11.0"
+  echo "-----> Building app with sbt"
   curl --silent --max-time 60 -O --location $SBT_URL
 
   ## some of the downloads don't have the version in the name,
@@ -87,20 +76,8 @@ if [ ! -f "$SBT_BINDIR"/"$SBT_JAR" ]; then
       mv "sbt-launch.jar" "$SBT_JAR"
   fi
 
-  ## verify SHA1
-  FOUND_SHA1=`openssl sha1 $SBT_JAR | sed -r "s/^.*= (.*)$/\1/"`
-  if test "$SBT_SHA1" != "$FOUND_SHA1" ; then
-      echo " failed"
-      echo " !     Expected SHA1 \"$SBT_SHA1\" but found \"$FOUND_SHA1\" for $SBT_JAR from $SBT_URL"
-      exit 1
-  fi
-
   cd $BUILD_DIR
 fi
-
-#copy the sbt script (do this every time so we can change it if necessary,
-#for example if switching sbt version, or just updates to the script)
-cp "$BIN_DIR/../opt/sbt-$SBT_VERSION" "$SBT_BINDIR"/sbt
 
 #echo -n "-----> Installing sbt.boot.properties..."
 curl --silent --max-time 10 --location $SBT_PROPS_URL --output "$SBT_BINDIR"/sbt.boot.properties
@@ -108,20 +85,25 @@ curl --silent --max-time 10 --location $SBT_PROPS_URL --output "$SBT_BINDIR"/sbt
 
 
 #echo -n "-----> Intsalling plugins..."
-HEROKU_PLUGIN="Heroku-$SBT_VERSION.scala"
+HEROKU_PLUGIN="Heroku-0.11.0.scala"
 mkdir -p "$SBT_USER_HOME/.sbt/plugins" && curl --silent --max-time 10 --location "http://s3.amazonaws.com/heroku-jvm-langpack-scala/$HEROKU_PLUGIN" --output "$SBT_USER_HOME/.sbt/plugins/$HEROKU_PLUGIN"
 
-HEROKU_PLUGINS_CONFIG="heroku-plugins-$SBT_VERSION.sbt"
+HEROKU_PLUGINS_CONFIG="heroku-plugins-0.11.0.sbt"
 mkdir -p "$SBT_USER_HOME/.sbt/plugins" && curl --silent --max-time 10 --location "http://s3.amazonaws.com/heroku-jvm-langpack-scala/$HEROKU_PLUGINS_CONFIG"  --output "$SBT_USER_HOME/.sbt/plugins/$HEROKU_PLUGINS_CONFIG"
 #echo " done"
 
 # build app
 echo "-----> Running: sbt $SBT_TASKS"
 test -e "$SBT_BINDIR"/sbt.boot.properties && PROPS_OPTION="-Dsbt.boot.properties=$SBT_BINDIR/sbt.boot.properties"
-HOME="$SBT_USER_HOME_ABSOLUTE" java -Xmx512M -Duser.home="$SBT_USER_HOME_ABSOLUTE" -Divy.default.ivy.user.dir="$SBT_USER_HOME_ABSOLUTE/.ivy2" $PROPS_OPTION -jar "$SBT_BINDIR"/$SBT_JAR $SBT_TASKS 2>&1 | sed -u 's/^/       /'
+HOME="$SBT_USER_HOME_ABSOLUTE" java -Xmx1024M -Dfile.encoding=UTF8 -Duser.home="$SBT_USER_HOME_ABSOLUTE" -Dsbt.log.noformat=true -Divy.default.ivy.user.dir="$SBT_USER_HOME_ABSOLUTE/.ivy2" $PROPS_OPTION -jar "$SBT_BINDIR"/$SBT_JAR $SBT_TASKS 2>&1 | sed -u 's/^/       /'
 if [ "${PIPESTATUS[*]}" != "0 0" ]; then
-  echo " !     Failed to build app with SBT $SBT_VERSION"
+  echo " !     Failed to build app with sbt"
   exit 1
+fi
+
+if is_play $BUILD_DIR && [ -d $SBT_USER_HOME/.ivy2 ] ; then
+  echo "-----> Dropping ivy cache from the slug" 
+  rm -rf $SBT_USER_HOME/.ivy2 
 fi
 
 # repack cache
@@ -129,5 +111,8 @@ mkdir -p $CACHE_DIR
 for DIR in $CACHED_DIRS ; do
   rm -rf $CACHE_DIR/$DIR
   mkdir -p $CACHE_DIR/$DIR
-  cp -r $DIR/.  $CACHE_DIR/$DIR
+  if [ -d $DIR ] ; then
+    cp -r $DIR/.  $CACHE_DIR/$DIR
+  fi
 done
+

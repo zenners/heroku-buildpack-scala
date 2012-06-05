@@ -3,6 +3,7 @@
 . ${BUILDPACK_TEST_RUNNER_HOME}/lib/test_utils.sh
 
 DEFAULT_SBT_VERSION="0.11.0"
+DEFAULT_SBT_JAR="sbt-launch-0.11.3-2.jar"
 SBT_TEST_CACHE="/tmp/sbt-test-cache"
 SBT_STAGING_STRING="THIS_STRING_WILL_BE_OUTPUT_DURING_STAGING"
 
@@ -94,23 +95,18 @@ testCompile()
   assertCapturedSuccess
 
   # setup
-  assertTrue "Ivy2 cache should have been unpacked" "[ -f ${BUILD_DIR}/.sbt_home/.ivy2/testfile ]"
+  assertTrue "Ivy2 cache should have been repacked." "[ -d ${BUILD_DIR}/.sbt_home/.ivy2 ]"
   assertTrue "SBT bin cache should have been unpacked" "[ -f ${BUILD_DIR}/.sbt_home/bin/testfile ]"
   assertTrue "Ivy2 cache should exist" "[ -d ${BUILD_DIR}/.ivy2/cache ]"
   assertFalse "Old SBT launch jar should have been deleted" "[ -f ${BUILD_DIR}/.sbt_home/bin/sbt-launch-OLD.jar ]"
   assertCaptured "SBT should have been installed" "Building app with sbt" 
-  assertFileMD5 "fa57b75cbc45763b7188a71928f4cd9a" "${BUILD_DIR}/.sbt_home/bin/sbt-launch-${DEFAULT_SBT_VERSION}.jar"
-  assertFileMD5 "13edddc0e7a326a8bce014363270b6cc" "${BUILD_DIR}/.sbt_home/bin/sbt.boot.properties"
-  assertFileMD5 "7fef33ac6fc019bb361fa85c7dc07f7c" "${BUILD_DIR}/.sbt_home/.sbt/plugins/Heroku-${DEFAULT_SBT_VERSION}.scala"
-  assertFileMD5 "13cf615379347d6f1ef10a4334f578f7" "${BUILD_DIR}/.sbt_home/.sbt/plugins/heroku-plugins-${DEFAULT_SBT_VERSION}.sbt"
-  assertEquals "SBT script should have been copied from buildpack and replaced old version" "" "$(diff ${BUILDPACK_HOME}/opt/sbt-${DEFAULT_SBT_VERSION} ${BUILD_DIR}/.sbt_home/bin/sbt)"
 
   # run
   assertCaptured "SBT tasks to run should be output" "Running: sbt clean compile stage" 
   assertCaptured "SBT should run stage task" "${SBT_STAGING_STRING}" 
  
   # clean up
-  assertEquals "Ivy2 cache should have been repacked" "" "$(diff -r ${BUILD_DIR}/.sbt_home/.ivy2 ${CACHE_DIR}/.sbt_home/.ivy2)"
+  assertEquals "Ivy2 cache should have been repacked for a non-play project" "" "$(diff -r ${BUILD_DIR}/.sbt_home/.ivy2 ${CACHE_DIR}/.sbt_home/.ivy2)"
   assertEquals "SBT home should have been repacked" "" "$(diff -r ${BUILD_DIR}/.sbt_home/bin ${CACHE_DIR}/.sbt_home/bin)"
 
   # re-deploy
@@ -119,6 +115,15 @@ testCompile()
   assertCapturedSuccess
   assertNotCaptured "SBT should not be re-installed on re-run" "Building app with sbt" 
   assertCaptured "SBT tasks to run should still be outputed" "Running: sbt clean compile stage" 
+}
+
+testCompile_Play20Project() {
+  createSbtProject
+  mkdir -p ${BUILD_DIR}/conf
+  touch ${BUILD_DIR}/conf/application.conf
+  compile
+  assertCapturedSuccess
+  assertTrue "Ivy2 cache should not have been repacked for a play project." "[ -d ${CACHE_DIR}/.sbt_home/.ivy2 ]"
 }
 
 testCompile_WithNonDefaultVersion()
@@ -131,8 +136,27 @@ testCompile_WithNonDefaultVersion()
   compile
 
   assertCapturedSuccess
-  assertCaptured "Default version of SBT should always be installed" "Building app with sbt v${DEFAULT_SBT_VERSION}" 
+  assertCaptured "Default version of SBT should always be installed" "Building app with sbt" 
   assertCaptured "Specified SBT version should actually be used" "Getting org.scala-tools.sbt sbt_2.9.1 ${specifiedSbtVersion}" 
+}
+
+testCompile_WithRCVersion() {
+  local specifiedSbtVersion="${DEFAULT_SBT_VERSION}-RC"
+  createSbtProject ${specifiedSbtVersion}
+  compile
+  assertCaptured "A release candidate version should not be supported." "Error, you have defined an unsupported sbt.version in project/build.properties" 
+}
+
+testCompile_WithMultilineBuildProperties() {
+  createSbtProject
+  mkdir -p ${BUILD_DIR}/project
+  cat > ${BUILD_DIR}/project/build.properties <<EOF
+sbt.version   =  0.11.3
+
+abc=xyz
+EOF
+  compile
+  assertCaptured "Multiline properties file should detect sbt version" "Building app with sbt"
 }
 
 testCompile_BuildFailure()
@@ -146,7 +170,7 @@ EOF
 
   compile
   
-  assertCapturedError "Failed to build app with SBT"  
+  assertCapturedError "Failed to build app with sbt"  
 }
 
 testCompile_NoStageTask()
@@ -157,7 +181,7 @@ testCompile_NoStageTask()
   compile
 
   assertCapturedError "Not a valid key: stage"
-  assertCapturedError "Failed to build app with SBT"
+  assertCapturedError "Failed to build app with sbt"
 }
 
 testComplile_NoBuildPropertiesFile()
@@ -171,7 +195,7 @@ testComplile_NoBuildPropertiesFile()
   assertCapturedError "You must use a release verison of sbt, sbt.version=${DEFAULT_SBT_VERSION} or greater"
 }
 
-testComplile_BuildPropertiesFileWithUnsupportedVersion()
+testComplile_BuildPropertiesFileWithUnsupportedOldVersion()
 {
   createSbtProject "0.10.0"
 
@@ -181,7 +205,7 @@ testComplile_BuildPropertiesFileWithUnsupportedVersion()
   assertCapturedError "You must use a release verison of sbt, sbt.version=${DEFAULT_SBT_VERSION} or greater"
 }
 
-testComplile_BuildPropertiesFileWithUnsupportedVersion()
+testComplile_BuildPropertiesFileWithUnsupportedRCVersion()
 {
   createSbtProject "0.11.0-RC"
 
