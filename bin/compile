@@ -4,12 +4,44 @@
 # fail fast
 set -e
 
-BIN_DIR=$(cd $(dirname $0); pwd) # absolute path
+BP_DIR=$(cd $(dirname $0)/..; pwd) # absolute path
+BIN_DIR=$BP_DIR/bin
+OPT_DIR=$BP_DIR/opt
 . $BIN_DIR/common
 
 # parse args
 BUILD_DIR=$(cd $1; pwd)
 CACHE_DIR=$2
+
+curl --silent --location http://heroku-jvm-common.s3.amazonaws.com/jvm-buildpack-common.tar.gz | tar xz
+. bin/java
+
+if [ -f ${CACHE_DIR}/system.properties ] && [ ! -f ${BUILD_DIR}/system.properties ]; then
+  cp ${CACHE_DIR}/system.properties ${BUILD_DIR}/system.properties
+fi
+
+if [ ! -d $CACHE_DIR ]; then
+  LOGGER_FLAGS="$LOGGER_FLAGS new_java_app"
+  logger -p user.notice -t "slugc[$$]" "language_pack_java new_java_app"
+  if [ ! -f ${BUILD_DIR}/system.properties ]; then 
+    echo "java.runtime.version=1.6" > ${BUILD_DIR}/system.properties; 
+  fi
+fi
+
+#create the cache dir if it doesn't exist
+mkdir -p $CACHE_DIR
+
+# install JDK 
+if [ -f ${BUILD_DIR}/system.properties ]; then
+  logger -p user.notice -t "slugc[$$]" "language_pack_java download_jdk"
+  LOGGER_FLAGS="$LOGGER_FLAGS download_jdk"
+  javaVersion=$(detect_java_version ${BUILD_DIR})
+  echo -n "-----> Installing OpenJDK ${javaVersion}..."
+  install_java ${BUILD_DIR} ${javaVersion}
+  jdk_overlay ${BUILD_DIR}
+  echo "done"
+  cp ${BUILD_DIR}/system.properties ${CACHE_DIR}/
+fi
 
 # home directory from perspective of SBT; we rename
 # it because otherwise the project root and $HOME
@@ -33,6 +65,7 @@ for DIR in $CACHED_DIRS; do
   fi
 done
 
+# these are preliminary checks. actual version check happens below when attempting to download sbt boot.properties
 if ! test -e project/build.properties; then
 	echo " !      Error, your scala project must include project/build.properties and define sbt.version"
 	echo " !      You must use a release verison of sbt, sbt.version=0.11.0 or greater"
@@ -68,8 +101,11 @@ if [ ! -f "$SBT_BINDIR"/"$SBT_JAR" ]; then
   /bin/rm -f sbt sbt-launch-*.jar || true
 
   echo "-----> Building app with sbt"
-  curl --silent --max-time 60 -O --location $SBT_URL
+  curl --silent --max-time 60 -O --location $SBT_URL --fail || error "Failed to download $SBT_JAR"
 
+  echo "#!/usr/bin/env bash" > sbt
+  echo "/usr/bin/java -Dsbt.boot.properties=/app/.sbt_home/bin/sbt.boot.properties  -Duser.home=/app/.sbt_home -Divy.default.ivy.user.dir=/app/.sbt_home/.ivy2 -jar /app/.sbt_home/bin/$SBT_JAR \"\$@\"" >> sbt
+  chmod a+x sbt
   ## some of the downloads don't have the version in the name,
   ## fix it.
   if [ -f "sbt-launch.jar" ] ; then
@@ -79,23 +115,21 @@ if [ ! -f "$SBT_BINDIR"/"$SBT_JAR" ]; then
   cd $BUILD_DIR
 fi
 
-#echo -n "-----> Installing sbt.boot.properties..."
-curl --silent --max-time 10 --location $SBT_PROPS_URL --output "$SBT_BINDIR"/sbt.boot.properties
-#echo " done"
+if [ -f $OPT_DIR/$SBT_PROPS ]; then
+  cp $OPT_DIR/$SBT_PROPS $SBT_BINDIR/sbt.boot.properties
+else
+  error "Error, SBT version $SBT_VERSION not supported"
+fi
 
-
-#echo -n "-----> Intsalling plugins..."
-HEROKU_PLUGIN="Heroku-0.11.0.scala"
-mkdir -p "$SBT_USER_HOME/.sbt/plugins" && curl --silent --max-time 10 --location "http://s3.amazonaws.com/heroku-jvm-langpack-scala/$HEROKU_PLUGIN" --output "$SBT_USER_HOME/.sbt/plugins/$HEROKU_PLUGIN"
-
-HEROKU_PLUGINS_CONFIG="heroku-plugins-0.11.0.sbt"
-mkdir -p "$SBT_USER_HOME/.sbt/plugins" && curl --silent --max-time 10 --location "http://s3.amazonaws.com/heroku-jvm-langpack-scala/$HEROKU_PLUGINS_CONFIG"  --output "$SBT_USER_HOME/.sbt/plugins/$HEROKU_PLUGINS_CONFIG"
-#echo " done"
+# copy in heroku sbt plugin
+HEROKU_PLUGIN="Heroku-0.11.3.scala"
+mkdir -p "$SBT_USER_HOME/.sbt/plugins"
+cp $OPT_DIR/$HEROKU_PLUGIN $SBT_USER_HOME/.sbt/plugins/$HEROKU_PLUGIN
 
 # build app
 echo "-----> Running: sbt $SBT_TASKS"
 test -e "$SBT_BINDIR"/sbt.boot.properties && PROPS_OPTION="-Dsbt.boot.properties=$SBT_BINDIR/sbt.boot.properties"
-HOME="$SBT_USER_HOME_ABSOLUTE" java -Xmx1024M -Dfile.encoding=UTF8 -Duser.home="$SBT_USER_HOME_ABSOLUTE" -Dsbt.log.noformat=true -Divy.default.ivy.user.dir="$SBT_USER_HOME_ABSOLUTE/.ivy2" $PROPS_OPTION -jar "$SBT_BINDIR"/$SBT_JAR $SBT_TASKS 2>&1 | sed -u 's/^/       /'
+HOME="$SBT_USER_HOME_ABSOLUTE" java -Xms768M -Xmx1024M -XX:MaxPermSize=512M -XX:+CMSClassUnloadingEnabled -Dfile.encoding=UTF8 -Duser.home="$SBT_USER_HOME_ABSOLUTE" -Dsbt.log.noformat=true -Divy.default.ivy.user.dir="$SBT_USER_HOME_ABSOLUTE/.ivy2" $PROPS_OPTION -jar "$SBT_BINDIR"/$SBT_JAR $SBT_TASKS 2>&1 | sed -u 's/^/       /'
 if [ "${PIPESTATUS[*]}" != "0 0" ]; then
   echo " !     Failed to build app with sbt"
   exit 1

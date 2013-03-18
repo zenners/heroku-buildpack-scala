@@ -99,6 +99,7 @@ testCompile()
   assertTrue "SBT bin cache should have been unpacked" "[ -f ${BUILD_DIR}/.sbt_home/bin/testfile ]"
   assertTrue "Ivy2 cache should exist" "[ -d ${BUILD_DIR}/.ivy2/cache ]"
   assertFalse "Old SBT launch jar should have been deleted" "[ -f ${BUILD_DIR}/.sbt_home/bin/sbt-launch-OLD.jar ]"
+  assertTrue "sbt launch script should be created" "[ -f ${BUILD_DIR}/.sbt_home/bin/sbt ]"
   assertCaptured "SBT should have been installed" "Building app with sbt" 
 
   # run
@@ -146,6 +147,13 @@ testCompile_WithRCVersion() {
   createSbtProject ${specifiedSbtVersion}
   compile
   assertCaptured "A release candidate version should not be supported." "Error, you have defined an unsupported sbt.version in project/build.properties" 
+}
+
+testCompile_WithoutSupportedSbtPropertiesVersion() {
+  local specifiedSbtVersion="0.11.9"
+  createSbtProject ${specifiedSbtVersion}
+  compile
+  assertCaptured "A version that is allowed by premliminary version check but no SBT props should not be supported." "Error, SBT version ${specifiedSbtVersion} not supported" 
 }
 
 testCompile_WithMultilineBuildProperties() {
