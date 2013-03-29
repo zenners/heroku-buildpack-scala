@@ -152,4 +152,4 @@ fi
 
 # drop sbt target from slug
 echo "-----> Dropping SBT project boot from the slug" 
-rm -rf $SBT_USER_HOME/project/boot
+rm -rf $BUILD_DIR/project/boot
