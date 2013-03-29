@@ -121,10 +121,9 @@ else
   error "Error, SBT version $SBT_VERSION not supported"
 fi
 
-# copy in heroku sbt plugin
+# remove heroku sbt plugin, if exists from cache
 HEROKU_PLUGIN="Heroku-0.11.3.scala"
-mkdir -p "$SBT_USER_HOME/.sbt/plugins"
-cp $OPT_DIR/$HEROKU_PLUGIN $SBT_USER_HOME/.sbt/plugins/$HEROKU_PLUGIN
+rm -f $SBT_USER_HOME/.sbt/plugins/$HEROKU_PLUGIN
 
 # build app
 echo "-----> Running: sbt $SBT_TASKS"
