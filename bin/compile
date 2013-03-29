@@ -150,5 +150,6 @@ if is_play $BUILD_DIR && [ -d $SBT_USER_HOME/.ivy2 ] ; then
   rm -rf $SBT_USER_HOME/.ivy2 
 fi
 
-# drop sbt home from slug
-rm -rf $SBT_USER_HOME
+# drop sbt target from slug
+echo "-----> Dropping SBT project boot from the slug" 
+rm -rf $SBT_USER_HOME/project/boot
