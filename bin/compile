@@ -13,6 +13,17 @@ OPT_DIR=$BP_DIR/opt
 BUILD_DIR=$(cd $1; pwd)
 CACHE_DIR=$2
 
+cat <<EOF
+-----> ****** WARNING ******
+       The cleancache branch of the buildpack is deprecated. Please unset BUILDPACK_URL:
+
+           heroku config:unset BUILDPACK_URL       
+
+       To clear build cache, please use the 'repo:purge-cache' plugin:
+
+           https://github.com/lstoll/heroku-repo
+
+EOF
 
 #clear the cache
 rm -rf $CACHE_DIR
