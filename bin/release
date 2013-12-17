@@ -15,8 +15,10 @@ config_vars:
 EOF
 
 if is_play $BUILD_DIR && [ ! -f $BUILD_DIR/Procfile ] ; then
-cat <<EOF
-default_process_types:
-  web: target/start -Dhttp.port=\$PORT \$JAVA_OPTS 
-EOF
+  echo "default_process_types:"
+  if uses_universal_packaging $BUILD_DIR; then
+    echo "  $(universal_packaging_default_web_proc $BUILD_DIR)"
+  else
+    echo "  web: target/start -Dhttp.port=\$PORT \$JAVA_OPTS"
+  fi
 fi

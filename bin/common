@@ -46,7 +46,7 @@ get_supported_sbt_version() {
   local ctxDir=$1
   if _has_buildPropertiesFile $ctxDir; then
     sbtVersionLine="$(grep -P '[ \t]*sbt\.version[ \t]*=' "${ctxDir}"/project/build.properties | sed -E -e 's/[ \t\r\n]//g')"
-    sbtVersion=$(expr "$sbtVersionLine" : 'sbt\.version=\(0\.1[1-2]\.[0-9]\)$')
+    sbtVersion=$(expr "$sbtVersionLine" : 'sbt\.version=\(0\.1[1-3]\.[0-9]\)$')
     if [ "$sbtVersion" != 0 ] ; then
       echo "$sbtVersion"
     else
@@ -93,7 +93,40 @@ detect_play_lang() {
   fi
 }
 
+uses_universal_packaging() {
+  local ctxDir=$1
+  test -d $ctxDir/target/universal/stage/bin
+}
+
+_universal_packaging_procs() {
+  local ctxDir=$1
+  (cd $ctxDir; find target/universal/stage/bin -type f -executable)
+}
+
+_universal_packaging_proc_count() {
+  local ctxDir=$1
+  _universal_packaging_procs $ctxDir | wc -l
+}
+
+universal_packaging_default_web_proc() {
+  local ctxDir=$1
+  if [ $(_universal_packaging_proc_count $ctxDir) -eq 1 ]; then
+    echo "web: $(_universal_packaging_procs $ctxDir) -Dhttp.port=\$PORT"
+  fi
+}
+
 error() {
     echo " !     $1"
     exit 1
+}
+
+cache_copy() {
+  rel_dir=$1
+  from_dir=$2
+  to_dir=$3
+  rm -rf $to_dir/$rel_dir
+  if [ -d $from_dir/$rel_dir ]; then
+    mkdir -p $to_dir/$rel_dir
+    cp -pr $from_dir/$rel_dir/. $to_dir/$rel_dir
+  fi
 }
