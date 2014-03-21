@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bin/compile <build-dir> <cache-dir> <env-file>
+# bin/compile <build-dir> <cache-dir> <env-dir>
 
 # fail fast
 set -e
@@ -12,15 +12,17 @@ OPT_DIR=$BP_DIR/opt
 # parse args
 APP_BUILD_DIR=$(cd $1; pwd)
 CACHE_DIR=$2
-ENV_FILE=$3
-[ -f "$ENV_FILE" ] && export $(grep 'SBT_CLEAN' $ENV_FILE)
+ENV_DIR=$3
 
 # Move app to a static build dir to keep paths the same between builds
 BUILD_DIR="/tmp/scala_buildpack_build_dir"
 mv $APP_BUILD_DIR $BUILD_DIR
 
 curl --silent --location http://heroku-jvm-common.s3.amazonaws.com/jvm-buildpack-common.tar.gz | tar xz
+. bin/util
 . bin/java
+
+export_env_dir $ENV_DIR
 
 #create the cache dir if it doesn't exist
 mkdir -p $CACHE_DIR
@@ -79,9 +81,9 @@ SBT_PROPS_URL="http://s3.amazonaws.com/heroku-jvm-langpack-scala/$SBT_PROPS"
 SBT_TASKS="compile stage"
 
 # To enable clean compiles, configure the environment to clean:
-# $ heroku labs:enable user-env-compile
 # $ heroku config:set SBT_CLEAN=true
 # $ git push heroku master
+# See: https://devcenter.heroku.com/articles/scala-support#clean-builds
 [ "$SBT_CLEAN" = "true" ] && SBT_TASKS="clean $SBT_TASKS"
 
 if [ ! -d .ivy2/cache ]; then
@@ -100,7 +102,7 @@ if [ ! -f "$SBT_BINDIR"/"$SBT_JAR" ]; then
   echo "done"
 
   echo "#!/usr/bin/env bash" > sbt
-  echo "/usr/bin/java -Dsbt.boot.properties=/app/.sbt_home/bin/sbt.boot.properties  -Duser.home=/app/.sbt_home -Divy.default.ivy.user.dir=/app/.sbt_home/.ivy2 -jar /app/.sbt_home/bin/$SBT_JAR \"\$@\"" >> sbt
+  echo "java -Dsbt.boot.properties=/app/.sbt_home/bin/sbt.boot.properties  -Duser.home=/app/.sbt_home -Divy.default.ivy.user.dir=/app/.sbt_home/.ivy2 -jar /app/.sbt_home/bin/$SBT_JAR \"\$@\"" >> sbt
   chmod a+x sbt
 
   cd $BUILD_DIR
