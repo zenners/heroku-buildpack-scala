@@ -158,5 +158,7 @@ if is_play $BUILD_DIR ; then
   fi
 fi
 
+rm -rf $BUILD_DIR/target/streams
+
 # Move compiled app back to where Heroku expects it
 mv $BUILD_DIR $APP_BUILD_DIR
