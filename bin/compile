@@ -128,6 +128,12 @@ if [ "${PIPESTATUS[*]}" != "0 0" ]; then
   exit 1
 fi
 
+HOME="$SBT_USER_HOME_ABSOLUTE" java -Xms768M -Xmx1024M -XX:MaxPermSize=512M -XX:+CMSClassUnloadingEnabled -Dfile.encoding=UTF8 -Duser.home="$SBT_USER_HOME_ABSOLUTE" -Dsbt.log.noformat=true -Divy.default.ivy.user.dir="$SBT_USER_HOME_ABSOLUTE/.ivy2" -Dsbt.global.base="$SBT_USER_HOME_ABSOLUTE" $PROPS_OPTION -jar "$SBT_BINDIR"/$SBT_JAR last 2>&1 | sed -u 's/^/       /'
+if [ "${PIPESTATUS[*]}" != "0 0" ]; then
+  echo " !     Failed to build app with sbt"
+  exit 1
+fi
+
 PROFILE_PATH="$BUILD_DIR/.profile.d/scala.sh"
 mkdir -p $(dirname $PROFILE_PATH)
 echo 'export PATH="/app/.jdk/bin:$PATH"' >> $PROFILE_PATH
