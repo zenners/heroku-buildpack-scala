@@ -9,6 +9,7 @@ object HerokuPlugin extends Plugin {
           "heroku-central" at "http://s3pository.heroku.com/maven-central/",
           "typesafe" at "http://repo.typesafe.com/typesafe/repo/")
     },
-    sources in doc in Compile := List()
+    sources in doc in Compile := List(),
+    allDependencies := allDependencies.value.filterNot(_.configurations == Some("test"))
   )
 }
