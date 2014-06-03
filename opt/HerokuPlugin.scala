@@ -10,6 +10,6 @@ object HerokuPlugin extends Plugin {
           "typesafe" at "http://repo.typesafe.com/typesafe/repo/")
     },
     sources in doc in Compile := List(),
-    allDependencies := allDependencies.value.filterNot(_.configurations == Some("test"))
+    allDependencies := allDependencies.value.filterNot(_.configurations == Some("test")).map { dep: sbt.ModuleID => println("DEP: " + dep + " " + dep.configurations.getOrElse("")); dep }
   )
 }
