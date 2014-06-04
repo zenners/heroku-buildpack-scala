@@ -118,6 +118,7 @@ fi
 HEROKU_PLUGIN="HerokuPlugin.scala"
 mkdir -p "$SBT_USER_HOME/.sbt/0.13/plugins"
 cp -p $OPT_DIR/$HEROKU_PLUGIN $SBT_USER_HOME/.sbt/0.13/plugins/$HEROKU_PLUGIN
+cp -p $OPT_DIR/$HEROKU_PLUGIN ~/.sbt/0.13/plugins/$HEROKU_PLUGIN
 
 # build app
 echo "-----> Running: sbt $SBT_TASKS"
