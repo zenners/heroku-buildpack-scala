@@ -116,8 +116,8 @@ fi
 
 # copy in heroku sbt plugin
 HEROKU_PLUGIN="HerokuPlugin.scala"
-mkdir -p "$SBT_USER_HOME/.sbt/plugins"
-cp -p $OPT_DIR/$HEROKU_PLUGIN $SBT_USER_HOME/.sbt/plugins/$HEROKU_PLUGIN
+mkdir -p "$SBT_USER_HOME/.sbt/0.13/plugins"
+cp -p $OPT_DIR/$HEROKU_PLUGIN $SBT_USER_HOME/.sbt/0.13/plugins/$HEROKU_PLUGIN
 
 # build app
 echo "-----> Running: sbt $SBT_TASKS"
