@@ -108,11 +108,13 @@ chmod a+x $SBT_BINDIR/sbt
 
 # download and cache the dependencies if this is the first build
 if [ ! -d "$SBT_USER_HOME/.ivy2" ]; then
-  if is_sbt_native_packager $BUILD_DIR || is_play $BUILD_DIR; then
-    prime_ivy_cache "$BUILD_DIR" "$SBT_USER_HOME_ABSOLUTE" "$SBT_BINDIR/$SBT_JAR"
-    run_sbt "$SBT_USER_HOME_ABSOLUTE" "$SBT_BINDIR/$SBT_JAR" "update"
-    cache_copy $SBT_USER_HOME/.ivy2 $BUILD_DIR $CACHE_DIR
+  if ! is_sbt_start_script $BUILD_DIR; then
+    if is_sbt_native_packager $BUILD_DIR || is_play $BUILD_DIR; then
+      prime_ivy_cache "$BUILD_DIR" "$SBT_USER_HOME_ABSOLUTE" "$SBT_BINDIR/$SBT_JAR"
+    fi
   fi
+  run_sbt "$SBT_USER_HOME_ABSOLUTE" "$SBT_BINDIR/$SBT_JAR" "update"
+  cache_copy $SBT_USER_HOME/.ivy2 $BUILD_DIR $CACHE_DIR
 fi
 
 # build app
@@ -129,7 +131,7 @@ for DIR in $CACHED_DIRS; do
 done
 
 # drop useless directories from slug for play and sbt-native-launcher only
-if is_sbt_native_packager $BUILD_DIR || is_play $BUILD_DIR; then
+if uses_universal_packaging $BUILD_DIR; then
   if [ -d $SBT_USER_HOME/.ivy2 ]; then
     echo "-----> Dropping ivy cache from the slug"
     rm -rf $SBT_USER_HOME/.ivy2

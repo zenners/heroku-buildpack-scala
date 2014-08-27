@@ -17,6 +17,16 @@ is_play() {
   _has_playConfig $1
 }
 
+is_sbt_start_script() {
+  local ctxDir=$1
+  if [ -e "${ctxDir}"/project/plugins.sbt ]; then
+    pluginVersionLine="$(grep "addSbtPlugin(.\+sbt-start-script" "${ctxDir}"/project/plugins.sbt)"
+    test -n "$pluginVersionLine"
+  else
+    return 1
+  fi
+}
+
 is_sbt_native_packager() {
   local ctxDir=$1
   if [ -e "${ctxDir}"/project/plugins.sbt ]; then
