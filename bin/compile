@@ -163,7 +163,7 @@ cat << EOF > $APP_BUILD_DIR/.startup/java_with_jmap
   eval "\$@ &"
   pid=\$!
 
-  trap "/app/.jdk/bin/jmap -heap \$pid; /app/.jdk/bin/jmap -histo \$pid" SIGTERM
+  trap "/app/.jdk/bin/jmap -histo \$pid" SIGTERM
   trap "kill -9 \$pid; exit" SIGKILL
 
   while :
