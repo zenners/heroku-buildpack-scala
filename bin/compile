@@ -155,3 +155,31 @@ fi
 
 # Move compiled app back to where Heroku expects it
 mv $BUILD_DIR $APP_BUILD_DIR
+
+mkdir -p $BUILD_DIR/.startup
+cat << EOF > $BUILD_DIR/.startup/java_with_jstack
+  #!/usr/bin/env bash
+
+  eval "\$@ &"
+  pid=\$!
+
+  trap "/app/.jdk/bin/jmap -heap \$pid; /app/.jdk/bin/jmap -histo \$pid" SIGTERM
+  trap "kill -9 \$pid; exit" SIGKILL
+
+  if [ -z "$JSTACK_INTERVAL"  ]; then
+    JSTACK_INTERVAL="360"
+  fi
+
+  while :
+  do
+    if [ -z "$JSTACK_INTERVAL" ]; then
+      sleep 30
+    elif [ "$JSTACK_INTERVAL" = "0" ]; then
+      sleep 30
+    else
+      sleep "${JSTACK_INTERVAL}"
+      kill -3 \$pid
+    fi
+  done
+EOF
+chmod +x $BUILD_DIR/.startup/java_with_jstack
