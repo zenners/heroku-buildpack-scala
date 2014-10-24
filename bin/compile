@@ -157,7 +157,7 @@ fi
 mv $BUILD_DIR $APP_BUILD_DIR
 
 mkdir -p $BUILD_DIR/.startup
-cat << EOF > $BUILD_DIR/.startup/java_with_jstack
+cat << EOF > $BUILD_DIR/.startup/java_with_jmap
   #!/usr/bin/env bash
 
   eval "\$@ &"
