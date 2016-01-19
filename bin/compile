@@ -108,6 +108,10 @@ SBT_TASKS="compile stage"
 # $ heroku config:set SBT_PRE_TASKS=flyway:info
 [ "$SBT_PRE_TASKS" ] && SBT_TASKS="$SBT_PRE_TASKS $SBT_TASKS"
 
+# To run any tasks after the actual build, configure the environment
+# $ heroku config:set SBT_POST_TASKS=purgeCruft
+[ "$SBT_POST_TASKS" ] && SBT_TASKS="$SBT_TASKS $SBT_POST_TASKS"
+
 # To enable clean compiles, configure the environment to clean:
 # $ heroku config:set SBT_CLEAN=true
 # $ git push heroku master
